@@ -1,0 +1,41 @@
+name: Build Plugins Policy Preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+          - os: macos-15-intel
+            platform: mac-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pyinstaller==6.16.0
+      - name: Build Windows portable EXE
+        if: matrix.platform == 'windows'
+        run: python -m PyInstaller --noconfirm --clean --windowed --onefile --name PluginsPolicy app.py
+      - name: Build Mac APP and DMG
+        if: matrix.platform == 'mac-intel'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.15'
+        run: |
+          python -m PyInstaller --noconfirm --clean --windowed --name PluginsPolicy --osx-bundle-identifier com.piradex.pluginspolicy app.py
+          mkdir -p dist/dmgroot
+          cp -R dist/PluginsPolicy.app dist/dmgroot/
+          ln -s /Applications dist/dmgroot/Applications
+          hdiutil create -volname "Plugins Policy" -srcfolder dist/dmgroot -format UDZO dist/PluginsPolicy-Mac-Intel.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginsPolicy-${{ matrix.platform }}
+          path: |
+            dist/PluginsPolicy.exe
+            dist/PluginsPolicy-Mac-Intel.dmg
