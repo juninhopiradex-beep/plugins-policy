@@ -1,0 +1,72 @@
+name: Native build (M1)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['native/**', '.github/workflows/native-ci.yml']
+  pull_request:
+    paths: ['native/**', '.github/workflows/native-ci.yml']
+
+jobs:
+  core-and-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+          - os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        working-directory: native
+        run: cmake -S . -B build -DPP_BUILD_TESTS=ON -DPP_BUILD_APP=OFF
+      - name: Build
+        working-directory: native
+        run: cmake --build build --config Release
+      - name: Test
+        working-directory: native
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  app-macos-catalina-target:
+    # Builds the JUCE app against the 10.15 deployment target on an Intel runner.
+    # This proves it compiles for Catalina. It does NOT prove it runs on Catalina:
+    # that requires a real test on a Catalina machine (see PROJECT-STATUS.md).
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        working-directory: native
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.15'
+        run: cmake -S . -B build -DPP_BUILD_TESTS=ON -DPP_BUILD_APP=ON -DCMAKE_OSX_ARCHITECTURES=x86_64
+      - name: Build
+        working-directory: native
+        run: cmake --build build --config Release -j 4
+      - name: Test
+        working-directory: native
+        run: ctest --test-dir build -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginsPolicy-macos-catalina-target-unverified
+          path: "native/build/**/Plugins Policy.app"
+          if-no-files-found: warn
+
+  app-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        working-directory: native
+        run: cmake -S . -B build -DPP_BUILD_TESTS=ON -DPP_BUILD_APP=ON
+      - name: Build
+        working-directory: native
+        run: cmake --build build --config Release -j 4
+      - name: Test
+        working-directory: native
+        run: ctest --test-dir build -C Release --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PluginsPolicy-windows-unverified
+          path: "native/build/**/Plugins Policy.exe"
+          if-no-files-found: warn
