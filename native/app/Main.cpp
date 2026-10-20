@@ -98,6 +98,15 @@ public:
         addAndMakeVisible(pluginList);
 
         scanButton.onClick = [this] { rescan(); };
+
+        // Analysis is not implemented yet (M2–M4). Say so instead of doing nothing.
+        analyzeButton.onClick = [] {
+            juce::AlertWindow::showMessageBoxAsync(
+                juce::MessageBoxIconType::InfoIcon,
+                "Análise ainda não disponível",
+                "A análise real ainda não está implementada. O host de plugins (M2) e as medições (M3) "
+                "vêm a seguir. Não mostramos resultados simulados.");
+        };
         addAndMakeVisible(scanButton);
 
         analyzeButton.setEnabled(false); // enabled once a plugin is selected
